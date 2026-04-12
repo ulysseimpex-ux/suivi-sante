@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Suivi Santé</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --surface2: #1e2335;
+    --border: #2a2f45;
+    --accent: #6c8ef5;
+    --accent2: #a78bfa;
+    --warn: #f97316;
+    --good: #34d399;
+    --bad: #f87171;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 80px;
+    font-size: 15px;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #1a1f35 0%, #141827 100%);
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-top { display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--text); }
+  .header .date-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* NAV */
+  .nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+  }
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 10px 4px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 22px; height: 22px; }
+
+  /* PAGES */
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  /* TODAY SUMMARY */
+  .today-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .stat-pill {
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .stat-pill .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-pill .value { font-size: 22px; font-family: 'DM Serif Display', serif; }
+  .stat-pill .sub { font-size: 11px; color: var(--muted); }
+
+  /* SCORE BAR */
+  .score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .score-label { font-size: 12px; color: var(--muted); width: 90px; flex-shrink: 0; }
+  .score-bar { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .score-val { font-size: 12px; font-weight: 600; width: 20px; text-align: right; }
+
+  /* FORM */
+  .form-section { margin-bottom: 20px; }
+  .form-section h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent2);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .form-row { margin-bottom: 14px; }
+  .form-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: block; }
+  .form-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+
+  /* SLIDER */
+  .slider-wrap { position: relative; padding: 4px 0; }
+  input[type=range] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--surface2);
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(108,142,245,0.2);
+  }
+  .slider-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .slider-val {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-left: 8px;
+  }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; width: 100%; }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-secondary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 12px;
+    padding: 7px 12px;
+  }
+  .btn-danger { background: rgba(248,113,113,0.15); border: 1px solid rgba(248,113,113,0.3); color: var(--bad); font-size: 12px; padding: 7px 12px; }
+
+  /* ACTIVITY TAGS */
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .tag.selected { background: rgba(108,142,245,0.2); border-color: var(--accent); color: var(--accent); }
+  .tag .remove { color: var(--bad); font-size: 14px; line-height: 1; }
+
+  /* HISTORY LIST */
+  .history-item {
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .history-item:active { border-color: var(--accent); }
+  .history-date { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .history-scores { display: flex; gap: 8px; flex-wrap: wrap; }
+  .score-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    background: var(--surface);
+    border-radius: 6px;
+    padding: 3px 8px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* PEM BADGE */
+  .pem-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(249,115,22,0.15);
+    border: 1px solid rgba(249,115,22,0.3);
+    color: var(--warn);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* CHART */
+  .chart-wrap { position: relative; height: 180px; margin: 8px 0; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    white-space: nowrap;
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    display: none;
+    align-items: flex-end;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    padding: 20px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+  }
+  .modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 18px; margin-bottom: 16px; }
+
+  /* SUCCESS TOAST */
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--good);
+    color: #0a1a12;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 13px;
+    z-index: 300;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; color: var(--muted); padding: 32px 0; font-size: 14px; }
+
+  /* SECTION DIVIDER */
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  /* QUICK ADD ACTIVITY */
+  .quick-act {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .quick-act input {
+    flex: 1;
+  }
+
+  /* COLOR HELPERS */
+  .c-good { color: var(--good); }
+  .c-warn { color: var(--warn); }
+  .c-bad { color: var(--bad); }
+  .c-accent { color: var(--accent); }
+  .c-muted { color: var(--muted); }
+
+  /* DETAIL VIEW */
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-row .key { color: var(--muted); }
+  .detail-row .val { font-weight: 600; }
+
+  /* PLUS MINUS */
+  .plusminus-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    width: 160px;
+  }
+  .pm-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 22px;
+    font-weight: 300;
+    width: 48px;
+    height: 44px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+  .pm-btn:active { background: rgba(108,142,245,0.15); }
+  .pm-val {
+    flex: 1;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <h1>🩺 Suivi Santé</h1>
+    <span class="date-badge" id="headerDate"></span>
+  </div>
+</div>
+
+<!-- PAGES -->
+
+<!-- PAGE: AUJOURD'HUI -->
+<div class="page active" id="page-today">
+  <div id="today-content"></div>
+</div>
+
+<!-- PAGE: SAISIE -->
+<div class="page" id="page-saisie">
+  <div class="card">
+    <div class="card-title">📅 Date</div>
+    <input type="date" class="form-input" id="saisie-date">
+  </div>
+
+  <!-- SOMMEIL -->
+  <div class="card">
+    <div class="card-title">🌙 Sommeil</div>
+    <div class="form-row">
+      <label class="form-label">Durée (heures)</label>
+      <input type="number" class="form-input" id="in-sommeil" placeholder="ex: 7.5" min="0" max="24" step="0.25" inputmode="decimal">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Qualité (0–10)</label>
+      <input type="number" class="form-input" id="in-qsommeil" placeholder="0 à 10" min="0" max="10" step="1" inputmode="numeric">
+    </div>
+  </div>
+
+  <!-- FORME -->
+  <div class="card">
+    <div class="card-title">⚡ Forme générale (1–10)</div>
+    <div class="form-row">
+      <label class="form-label">Matin</label>
+      <input type="number" class="form-input" id="in-fmatin" placeholder="1 à 10" min="1" max="10" step="1" inputmode="numeric">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Après-midi</label>
+      <input type="number" class="form-input" id="in-fmidi" placeholder="1 à 10" min="1" max="10" step="1" inputmode="numeric">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Soir</label>
+      <input type="number" class="form-input" id="in-fsoir" placeholder="1 à 10" min="1" max="10" step="1" inputmode="numeric">
+    </div>
+  </div>
+
+  <!-- ETOURDISSEMENTS -->
+  <div class="card">
+    <div class="card-title">😵 Étourdissements (1–10)</div>
+    <div class="form-row">
+      <label class="form-label">Matin</label>
+      <input type="number" class="form-input" id="in-ematin" placeholder="1 à 10" min="1" max="10" step="1" inputmode="numeric">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Après-midi</label>
+      <input type="number" class="form-input" id="in-eam" placeholder="1 à 10" min="1" max="10" step="1" inputmode="numeric">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Soir</label>
+      <input type="number" class="form-input" id="in-esoir" placeholder="1 à 10" min="1" max="10" step="1" inputmode="numeric">
+    </div>
+  </div>
+
+  <!-- REPOS -->
+  <div class="card">
+    <div class="card-title">🛏️ Repos & Activité</div>
+    <div class="form-row">
+      <label class="form-label">Siestes</label>
+      <div class="plusminus-row">
+        <button class="pm-btn" onclick="pmChange('siestes',-1)">−</button>
+        <span class="pm-val" id="pm-siestes">0</span>
+        <button class="pm-btn" onclick="pmChange('siestes',1)">+</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Repos</label>
+      <div class="plusminus-row">
+        <button class="pm-btn" onclick="pmChange('repos',-1)">−</button>
+        <span class="pm-val" id="pm-repos">0</span>
+        <button class="pm-btn" onclick="pmChange('repos',1)">+</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Pas (nombre réel)</label>
+      <input type="number" class="form-input" id="in-pas" placeholder="ex: 4500" min="0" step="100" inputmode="numeric">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Sorties</label>
+      <div class="plusminus-row">
+        <button class="pm-btn" onclick="pmChange('sorties',-1)">−</button>
+        <span class="pm-val" id="pm-sorties">0</span>
+        <button class="pm-btn" onclick="pmChange('sorties',1)">+</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Cigarettes</label>
+      <div class="plusminus-row">
+        <button class="pm-btn" onclick="pmChange('cigs',-1)">−</button>
+        <span class="pm-val" id="pm-cigs">0</span>
+        <button class="pm-btn" onclick="pmChange('cigs',1)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIVITES -->
+  <div class="card">
+    <div class="card-title">🎯 Activités du jour</div>
+    <div id="activity-tags" class="tag-list" style="margin-bottom:12px"></div>
+
+    <div class="form-label" style="margin-bottom:8px">Activités fréquentes</div>
+    <div class="tag-list" id="preset-activities" style="margin-bottom:12px">
+      <div class="tag" onclick="selectPreset('Café')">☕ Café</div>
+      <div class="tag" onclick="selectPreset('Café chez Vincent')">☕ Café chez Vincent</div>
+      <div class="tag" onclick="selectPreset('Café chez Moui')">☕ Café chez Moui</div>
+      <div class="tag" onclick="selectPreset('Pain')">🥖 Pain</div>
+      <div class="tag" onclick="selectPreset('Marche')">🚶 Marche</div>
+      <div class="tag" onclick="selectPreset('Ordinateur')">💻 Ordinateur</div>
+      <div class="tag" onclick="selectPreset('Pharmacie')">💊 Pharmacie</div>
+      <div class="tag" onclick="selectPreset('Supermarché')">🛒 Supermarché</div>
+      <div class="tag" onclick="selectPreset('RDV médicale')">🏥 RDV médicale</div>
+      <div class="tag" onclick="selectPreset('Laver cheveux')">🚿 Laver cheveux</div>
+      <div class="tag" onclick="selectPreset('Toilette')">🪥 Toilette</div>
+      <div class="tag" onclick="selectPreset('Tabac')">🚬 Tabac</div>
+      <div class="tag" onclick="selectPreset('La poste')">📮 La poste</div>
+      <div class="tag" onclick="selectPreset('Poubelle')">🗑️ Poubelle</div>
+    </div>
+
+    <div class="form-label" style="margin-bottom:6px">Heure & Épuisement</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <select class="form-input" id="act-heure" style="flex:1;font-size:13px">
+        <option>Matin</option>
+        <option>Après-midi</option>
+        <option>Soir</option>
+      </select>
+      <input type="number" class="form-input" id="act-duree" placeholder="min avant épuis." min="1" style="width:130px;font-size:13px" inputmode="numeric">
+    </div>
+
+    <div class="form-label" style="margin-bottom:6px">Autre activité</div>
+    <div class="quick-act">
+      <input type="text" class="form-input" id="act-input" placeholder="Saisir une autre activité..." style="font-size:14px">
+      <button class="btn btn-secondary" onclick="addActivity()" style="white-space:nowrap">+ Ajouter</button>
+    </div>
+  </div>
+
+  <!-- PEM -->
+  <div class="card">
+    <div class="card-title">⚠️ Malaise post-effort (PEM)</div>
+    <div class="form-row">
+      <label class="form-label">Intensité PEM (0–10)</label>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="plusminus-row">
+          <button class="pm-btn" onclick="pmChangePem(-1)">−</button>
+          <span class="pm-val" id="pm-pem">0</span>
+          <button class="pm-btn" onclick="pmChangePem(1)">+</button>
+        </div>
+        <span style="font-size:12px;color:var(--muted)">0 = aucun PEM</span>
+      </div>
+    </div>
+    <div id="pem-symptoms-wrap" style="display:none">
+      <label class="form-label" style="margin-bottom:10px;display:block">Symptômes associés</label>
+      <div class="tag-list" id="pem-symptom-tags">
+        <div class="tag" onclick="toggleSymptom(this,'Vertiges')">Vertiges</div>
+        <div class="tag" onclick="toggleSymptom(this,'Oppression thoracique')">Oppression thoracique</div>
+        <div class="tag" onclick="toggleSymptom(this,'Symptômes gastriques')">Symptômes gastriques</div>
+        <div class="tag" onclick="toggleSymptom(this,'Difficultés à respirer')">Difficultés à respirer</div>
+        <div class="tag" onclick="toggleSymptom(this,'Sensibilité lumière')">Sensibilité lumière</div>
+        <div class="tag" onclick="toggleSymptom(this,'Sensibilité son')">Sensibilité son</div>
+        <div class="tag" onclick="toggleSymptom(this,'Maux de tête')">Maux de tête</div>
+        <div class="tag" onclick="toggleSymptom(this,'Douleurs musculaires')">Douleurs musculaires</div>
+        <div class="tag" onclick="toggleSymptom(this,'Fatigue extrême')">Fatigue extrême</div>
+        <div class="tag" onclick="toggleSymptom(this,'Nausées')">Nausées</div>
+      </div>
+      <div class="form-row" style="margin-top:10px">
+        <label class="form-label">Autre symptôme</label>
+        <input type="text" class="form-input" id="pem-other" placeholder="Préciser...">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" onclick="saveEntry()" style="margin-top:4px">
+    ✅ Enregistrer la journée
+  </button>
+  <div style="height:16px"></div>
+</div>
+
+<!-- PAGE: GRAPHIQUES -->
+<div class="page" id="page-graphs">
+  <div class="tabs" id="graph-tabs">
+    <div class="tab active" onclick="switchGraphTab('forme')">Forme</div>
+    <div class="tab" onclick="switchGraphTab('etourdissements')">Étourdissements</div>
+    <div class="tab" onclick="switchGraphTab('sommeil')">Sommeil</div>
+    <div class="tab" onclick="switchGraphTab('pem')">PEM</div>
+    <div class="tab" onclick="switchGraphTab('activite')">Activité</div>
+  </div>
+  <div class="card">
+    <div class="card-title" id="graph-title">Forme (7 derniers jours)</div>
+    <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+  </div>
+  <div id="graph-stats"></div>
+</div>
+
+<!-- PAGE: HISTORIQUE -->
+<div class="page" id="page-history">
+  <div id="history-list"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="switchPage('today')" id="nav-today">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Aujourd'hui
+  </button>
+  <button class="nav-btn" onclick="switchPage('saisie')" id="nav-saisie">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    Saisie
+  </button>
+  <button class="nav-btn" onclick="switchPage('graphs')" id="nav-graphs">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Graphiques
+  </button>
+  <button class="nav-btn" onclick="switchPage('history')" id="nav-history">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Historique
+  </button>
+</nav>
+
+<!-- MODAL: DETAIL -->
+<div class="modal-overlay" id="detailModal" onclick="closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title"></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const INITIAL_DATA = {"journal":[{"Date":"2026-03-19","Durée sommeil nocturne":7.5,"Qualité Sommeil":7,"Forme Matin":3,"Forme Midi":2.0,"Forme Soir":2.0,"Forme journée":2.0,"Etourdissement matin":2.0,"Etourdissement AM":2.0,"Siestes (Nb)":1.0,"Repos (Nb)":0.0,"Nombre de sorties":1.0,"Pas (centaines)":11.0,"Cigarettes":19.0},{"Date":"2026-03-20","Durée sommeil nocturne":7.0,"Qualité Sommeil":10,"Forme Matin":3,"Forme Midi":2.0,"Forme Soir":3.0,"Forme journée":3.0,"Etourdissement matin":null,"Etourdissement AM":null,"Siestes (Nb)":1.0,"Repos (Nb)":0.0,"Nombre de sorties":1.0,"Pas (centaines)":11.03,"Cigarettes":15.0},{"Date":"2026-03-21","Durée sommeil nocturne":7.41,"Qualité Sommeil":7,"Forme Matin":4,"Forme Midi":3.0,"Forme Soir":3.0,"Forme journée":4.0,"Etourdissement matin":6.0,"Etourdissement AM":5.0,"Siestes (Nb)":1.0,"Repos (Nb)":0.0,"Nombre de sorties":1.0,"Pas (centaines)":7.08,"Cigarettes":17.0},{"Date":"2026-03-22","Durée sommeil nocturne":7.07,"Qualité Sommeil":5,"Forme Matin":4,"Forme Midi":3.0,"Forme Soir":3.0,"Forme journée":3.0,"Etourdissement matin":4.0,"Etourdissement AM":3.0,"Siestes (Nb)":1.0,"Repos (Nb)":null,"Nombre de sorties":1.0,"Pas (centaines)":10.39,"Cigarettes":18.0},{"Date":"2026-03-23","Durée sommeil nocturne":6.26,"Qualité Sommeil":5,"Forme Matin":3,"Forme Midi":2.0,"Forme Soir":3.0,"Forme journée":3.0,"Etourdissement matin":5.0,"Etourdissement AM":5.0,"Siestes (Nb)":1.0,"Repos (Nb)":null,"Nombre de sorties":1.0,"Pas (centaines)":10.0,"Cigarettes":14.0},{"Date":"2026-03-24","Durée sommeil nocturne":8.4,"Qualité Sommeil":10,"Forme Matin":2,"Forme Midi":2.0,"Forme Soir":2.0,"Forme journée":2.0,"Etourdissement matin":2.0,"Etourdissement AM":2.0,"Siestes (Nb)":1.0,"Repos (Nb)":1.0,"Nombre de sorties":0.0,"Pas (centaines)":12.12,"Cigarettes":12.0},{"Date":"2026-03-25","Durée sommeil nocturne":6.45,"Qualité Sommeil":9,"Forme Matin":2,"Forme Midi":1.0,"Forme Soir":2.0,"Forme journée":2.0,"Etourdissement matin":3.0,"Etourdissement AM":2.0,"Siestes (Nb)":1.0,"Repos (Nb)":2.0,"Nombre de sorties":1.0,"Pas (centaines)":7.72,"Cigarettes":12.0},{"Date":"2026-03-26","Durée sommeil nocturne":6.25,"Qualité Sommeil":7,"Forme Matin":2,"Forme Midi":2.0,"Forme Soir":2.0,"Forme journée":2.0,"Etourdissement matin":3.0,"Etourdissement AM":2.0,"Siestes (Nb)":1.0,"Repos (Nb)":1.0,"Nombre de sorties":1.0,"Pas (centaines)":8.42,"Cigarettes":14.0},{"Date":"2026-03-27","Durée sommeil nocturne":8.0,"Qualité Sommeil":7,"Forme Matin":3,"Forme Midi":3.0,"Forme Soir":2.0,"Forme journée":3.0,"Etourdissement matin":3.0,"Etourdissement AM":3.0,"Siestes (Nb)":2.0,"Repos (Nb)":0.0,"Nombre de sorties":1.0,"Pas (centaines)":8.76,"Cigarettes":22.0},{"Date":"2026-03-28","Durée sommeil nocturne":7.0,"Qualité Sommeil":6,"Forme Matin":3,"Forme Midi":2.0,"Forme Soir":2.0,"Forme journée":2.0,"Etourdissement matin":2.0,"Etourdissement AM":3.0,"Siestes (Nb)":1.0,"Repos (Nb)":null,"Nombre de sorties":1.0,"Pas (centaines)":11.79,"Cigarettes":17.0},{"Date":"2026-03-29","Durée sommeil nocturne":7.3,"Qualité Sommeil":7,"Forme Matin":2,"Forme Midi":2.0,"Forme Soir":2.0,"Forme journée":2.0,"Etourdissement matin":4.0,"Etourdissement AM":4.0,"Siestes (Nb)":2.0,"Repos (Nb)":3.0,"Nombre de sorties":1.0,"Pas (centaines)":10.16,"Cigarettes":12.0},{"Date":"2026-03-30","Durée sommeil nocturne":9.0,"Qualité Sommeil":6,"Forme Matin":2,"Forme Midi":2.0,"Forme Soir":2.0,"Forme journée":2.0,"Etourdissement matin":2.0,"Etourdissement AM":2.0,"Siestes (Nb)":1.0,"Repos (Nb)":3.0,"Nombre de sorties":1.0,"Pas (centaines)":12.07,"Cigarettes":17.0},{"Date":"2026-03-31","Durée sommeil nocturne":8.5,"Qualité Sommeil":6,"Forme Matin":1,"Forme Midi":1.0,"Forme Soir":2.0,"Forme journée":1.0,"Etourdissement matin":2.0,"Etourdissement AM":2.0,"Siestes (Nb)":1.0,"Repos (Nb)":2.0,"Nombre de sorties":null,"Pas (centaines)":11.33,"Cigarettes":18.0},{"Date":"2026-04-01","Durée sommeil nocturne":7.1,"Qualité Sommeil":8,"Forme Matin":2,"Forme Midi":2.0,"Forme Soir":2.0,"Forme journée":2.0,"Etourdissement matin":2.0,"Etourdissement AM":2.0,"Siestes (Nb)":2.0,"Repos (Nb)":2.0,"Nombre de sorties":null,"Pas (centaines)":8.89,"Cigarettes":12.0},{"Date":"2026-04-02","Durée sommeil nocturne":8.03,"Qualité Sommeil":8,"Forme Matin":2,"Forme Midi":2.0,"Forme Soir":2.0,"Forme journée":2.0,"Etourdissement matin":2.0,"Etourdissement AM":2.0,"Siestes (Nb)":2.0,"Repos (Nb)":null,"Nombre de sorties":1.0,"Pas (centaines)":17.99,"Cigarettes":16.0},{"Date":"2026-04-03","Durée sommeil nocturne":8.03,"Qualité Sommeil":8,"Forme Matin":2,"Forme Midi":3.0,"Forme Soir":3.0,"Forme journée":3.0,"Etourdissement matin":2.0,"Etourdissement AM":2.0,"Siestes (Nb)":2.0,"Repos (Nb)":2.0,"Nombre de sorties":null,"Pas (centaines)":8.26,"Cigarettes":13.0},{"Date":"2026-04-04","Durée sommeil nocturne":6.0,"Qualité Sommeil":6,"Forme Matin":3,"Forme Midi":3.0,"Forme Soir":2.0,"Forme journée":3.0,"Etourdissement matin":2.0,"Etourdissement AM":2.0,"Siestes (Nb)":2.0,"Repos (Nb)":null,"Nombre de sorties":null,"Pas (centaines)":6.96,"Cigarettes":14.0},{"Date":"2026-04-05","Durée sommeil nocturne":8.37,"Qualité Sommeil":6,"Forme Matin":2,"Forme Midi":2.0,"Forme Soir":2.0,"Forme journée":2.0,"Etourdissement matin":3.0,"Etourdissement AM":3.0,"Siestes (Nb)":1.0,"Repos (Nb)":1.0,"Nombre de sorties":null,"Pas (centaines)":9.44,"Cigarettes":17.0},{"Date":"2026-04-06","Durée sommeil nocturne":5.14,"Qualité Sommeil":5,"Forme Matin":3,"Forme Midi":2.0,"Forme Soir":3.0,"Forme journée":2.0,"Etourdissement matin":2.0,"Etourdissement AM":2.0,"Siestes (Nb)":0.0,"Repos (Nb)":1.0,"Nombre de sorties":1.0,"Pas (centaines)":15.3,"Cigarettes":17.0},{"Date":"2026-04-07","Durée sommeil nocturne":5.2,"Qualité Sommeil":5,"Forme Matin":2,"Forme Midi":2.0,"Forme Soir":2.0,"Forme journée":2.0,"Etourdissement matin":2.0,"Etourdissement AM":2.0,"Siestes (Nb)":1.0,"Repos (Nb)":1.0,"Nombre de sorties":null,"Pas (centaines)":9.48,"Cigarettes":19.0},{"Date":"2026-04-08","Durée sommeil nocturne":7.12,"Qualité Sommeil":7,"Forme Matin":2,"Forme Midi":3.0,"Forme Soir":3.0,"Forme journée":3.0,"Etourdissement matin":2.0,"Etourdissement AM":2.0,"Siestes (Nb)":1.0,"Repos (Nb)":5.0,"Nombre de sorties":null,"Pas (centaines)":14.59,"Cigarettes":15.0},{"Date":"2026-04-09","Durée sommeil nocturne":7.0,"Qualité Sommeil":7,"Forme Matin":3,"Forme Midi":2.0,"Forme Soir":3.0,"Forme journée":3.0,"Etourdissement matin":3.0,"Etourdissement AM":3.0,"Siestes (Nb)":null,"Repos (Nb)":4.0,"Nombre de sorties":1.0,"Pas (centaines)":19.36,"Cigarettes":22.0},{"Date":"2026-04-10","Durée sommeil nocturne":6.7,"Qualité Sommeil":7,"Forme Matin":3,"Forme Midi":3.0,"Forme Soir":2.0,"Forme journée":3.0,"Etourdissement matin":1.0,"Etourdissement AM":2.0,"Siestes (Nb)":null,"Repos (Nb)":5.0,"Nombre de sorties":1.0,"Pas (centaines)":14.83,"Cigarettes":25.0},{"Date":"2026-04-11","Durée sommeil nocturne":6.24,"Qualité Sommeil":7,"Forme Matin":2,"Forme Midi":null,"Forme Soir":null,"Forme journée":null,"Etourdissement matin":2.0,"Etourdissement AM":null,"Siestes (Nb)":1.0,"Repos (Nb)":3.0,"Nombre de sorties":null,"Pas (centaines)":null,"Cigarettes":null}],"activites":[{"ID_Activite":"6aa195a3","Lien_Date":"2026-03-19","Nature_Activite":"Café chez Vincent","Heure":"Matin"},{"ID_Activite":"f55e1c45","Lien_Date":"2026-03-19","Nature_Activite":"Pain","Heure":"Matin"},{"ID_Activite":"c610174b","Lien_Date":"2026-03-20","Nature_Activite":"Pharmacie","Heure":"Matin"},{"ID_Activite":"802b4029","Lien_Date":"2026-03-20","Nature_Activite":"Pain","Heure":"Matin"},{"ID_Activite":"c2bc8730","Lien_Date":"2026-03-21","Nature_Activite":"Laver cheveux","Heure":"Matin"},{"ID_Activite":"714dfe71","Lien_Date":"2026-03-21","Nature_Activite":"Café chez Vincent","Heure":"Matin"},{"ID_Activite":"7b6aab0f","Lien_Date":"2026-03-21","Nature_Activite":"Pain","Heure":"Matin"},{"ID_Activite":"e5b9a65d","Lien_Date":"2026-03-21","Nature_Activite":"Pharmacie","Heure":"Matin"},{"ID_Activite":"80772b37","Lien_Date":"2026-03-21","Nature_Activite":"La poste","Heure":"Matin"},{"ID_Activite":"4e3e5718","Lien_Date":"2026-03-20","Nature_Activite":"Café chez Vincent","Heure":"Matin"},{"ID_Activite":"3aa92e84","Lien_Date":"2026-03-21","Nature_Activite":"Tabac","Heure":"Matin"},{"ID_Activite":"609e9cc6","Lien_Date":"2026-03-21","Nature_Activite":"Ordinateur","Heure":"Matin"},{"ID_Activite":"4d725427","Lien_Date":"2026-03-21","Nature_Activite":"Ordinateur","Heure":"Après-midi"},{"ID_Activite":"781daf60","Lien_Date":"2026-03-22","Nature_Activite":"Café chez Vincent","Heure":"Matin"},{"ID_Activite":"de3a4d68","Lien_Date":"2026-03-22","Nature_Activite":"Pain","Heure":"Matin"},{"ID_Activite":"780e64cc","Lien_Date":"2026-03-22","Nature_Activite":"Ordinateur","Heure":"Matin"},{"ID_Activite":"b3a0c312","Lien_Date":"2026-03-22","Nature_Activite":"Poubelle","Heure":"Matin"},{"ID_Activite":"d1b8193c","Lien_Date":"2026-03-22","Nature_Activite":"Ordinateur","Heure":"Après-midi"},{"ID_Activite":"574a4319","Lien_Date":"2026-03-23","Nature_Activite":"Ordinateur","Heure":"Matin"},{"ID_Activite":"d4021507","Lien_Date":"2026-03-23","Nature_Activite":"Café","Heure":"Matin"},{"ID_Activite":"a26d8dd8","Lien_Date":"2026-03-23","Nature_Activite":"Supermarché","Heure":"Matin"},{"ID_Activite":"60679284","Lien_Date":"2026-03-23","Nature_Activite":"Pain","Heure":"Matin"},{"ID_Activite":"c59d05ab","Lien_Date":"2026-03-23","Nature_Activite":"Ordinateur","Heure":"Soir"},{"ID_Activite":"056d09e2","Lien_Date":"2026-03-25","Nature_Activite":"Tabac","Heure":"Matin"},{"ID_Activite":"10bfdf89","Lien_Date":"2026-03-25","Nature_Activite":"Café chez Vincent","Heure":"Matin"},{"ID_Activite":"1477c843","Lien_Date":"2026-03-25","Nature_Activite":"Pain","Heure":"Matin"},{"ID_Activite":"c0add531","Lien_Date":"2026-03-25","Nature_Activite":"Ordinateur","Heure":"Matin"},{"ID_Activite":"074a9778","Lien_Date":"2026-03-26","Nature_Activite":"Café chez Vincent","Heure":"Matin"},{"ID_Activite":"c55d2540","Lien_Date":"2026-03-26","Nature_Activite":"Ordinateur","Heure":"Matin"},{"ID_Activite":"d837c2c1","Lien_Date":"2026-03-27","Nature_Activite":"Pain","Heure":"Matin"},{"ID_Activite":"d70be95e","Lien_Date":"2026-03-27","Nature_Activite":"Café chez Vincent","Heure":"Matin"},{"ID_Activite":"9e6fa8c0","Lien_Date":"2026-03-28","Nature_Activite":"Laver cheveux","Heure":"Matin"},{"ID_Activite":"dbbd3437","Lien_Date":"2026-03-28","Nature_Activite":"Café chez Moui","Heure":"Matin"},{"ID_Activite":"c8836b0b","Lien_Date":"2026-03-28","Nature_Activite":"Pain","Heure":"Matin"},{"ID_Activite":"3ac27043","Lien_Date":"2026-03-29","Nature_Activite":"Tabac","Heure":"Matin"},{"ID_Activite":"da43bdab","Lien_Date":"2026-03-29","Nature_Activite":"Pain","Heure":"Matin"},{"ID_Activite":"4856a483","Lien_Date":"2026-03-29","Nature_Activite":"Café chez Vincent","Heure":"Matin"},{"ID_Activite":"e154c8e0","Lien_Date":"2026-03-30","Nature_Activite":"Café chez Vincent","Heure":"Matin"},{"ID_Activite":"487b7ad4","Lien_Date":"2026-03-30","Nature_Activite":"Pain","Heure":"Matin"},{"ID_Activite":"1f786785","Lien_Date":"2026-04-02","Nature_Activite":"Tabac","Heure":"Soir"},{"ID_Activite":"f8871330","Lien_Date":"2026-04-04","Nature_Activite":"Toilette","Heure":"Matin"},{"ID_Activite":"350aac7a","Lien_Date":"2026-04-04","Nature_Activite":"Laver cheveux","Heure":"Matin"},{"ID_Activite":"556ff03f","Lien_Date":"2026-04-06","Nature_Activite":"Café chez Vincent","Heure":"Matin"},{"ID_Activite":"72555df3","Lien_Date":"2026-04-06","Nature_Activite":"Pain","Heure":"Matin"},{"ID_Activite":"2ab10c2e","Lien_Date":"2026-04-06","Nature_Activite":"Tabac","Heure":"Matin"},{"ID_Activite":"963f8ca0","Lien_Date":"2026-04-08","Nature_Activite":"Marche","Heure":"Matin"},{"ID_Activite":"ecda62e1","Lien_Date":"2026-04-08","Nature_Activite":"Marche","Heure":"Après-midi"},{"ID_Activite":"77241238","Lien_Date":"2026-04-09","Nature_Activite":"RDV médicale","Heure":"Matin"},{"ID_Activite":"6864600d","Lien_Date":"2026-04-09","Nature_Activite":"Tabac","Heure":"Matin"},{"ID_Activite":"2604455f","Lien_Date":"2026-04-09","Nature_Activite":"Café chez Vincent","Heure":"Matin"},{"ID_Activite":"47350aba","Lien_Date":"2026-04-09","Nature_Activite":"Poubelle","Heure":"Soir"},{"ID_Activite":"bdcbfeba","Lien_Date":"2026-04-10","Nature_Activite":"RDV médicale","Heure":"Matin"},{"ID_Activite":"8d3f17eb","Lien_Date":"2026-04-10","Nature_Activite":"Pain","Heure":"Après-midi"},{"ID_Activite":"0fce2742","Lien_Date":"2026-04-10","Nature_Activite":"Poubelle","Heure":"Après-midi"},{"ID_Activite":"e38e6ee4","Lien_Date":"2026-04-10","Nature_Activite":"Laver cheveux","Heure":"Matin"},{"ID_Activite":"e021c923","Lien_Date":"2026-04-10","Nature_Activite":"Café chez Vincent","Heure":"Après-midi"}],"pem":[{"ID_Activite":"59b7d786","Lien_Date":"2026-03-23","Intensité":4.0,"Heure":"Journée entière","symptomes associés":"Vertiges , Opression thoracique , Difficultés à respirer "},{"ID_Activite":"c7a23be6","Lien_Date":"2026-03-24","Intensité":5.0,"Heure":"Journée entière","symptomes associés":"Vertiges"},{"ID_Activite":"5240ccc7","Lien_Date":"2026-03-25","Intensité":6.0,"Heure":"Journée entière","symptomes associés":"Syptômes gastriques , vertiges"},{"ID_Activite":"5c2d1bcf","Lien_Date":"2026-03-26","Intensité":6.0,"Heure":"Journée entière","symptomes associés":null},{"ID_Activite":"839c6293","Lien_Date":"2026-03-27","Intensité":5.0,"Heure":"Journée entière","symptomes associés":null},{"ID_Activite":"636734b0","Lien_Date":"2026-03-28","Intensité":5.0,"Heure":"Journée entière","symptomes associés":null},{"ID_Activite":"51b88da7","Lien_Date":"2026-03-29","Intensité":8.0,"Heure":"Journée entière","symptomes associés":"vertiges"},{"ID_Activite":"0bf333be","Lien_Date":"2026-03-30","Intensité":8.0,"Heure":"Journée entière","symptomes associés":"Syptômes gastriques"},{"ID_Activite":"1b09f43a","Lien_Date":"2026-03-31","Intensité":8.0,"Heure":"Journée entière","symptomes associés":null},{"ID_Activite":"bb64f0d9","Lien_Date":"2026-04-01","Intensité":6.0,"Heure":"Journée entière","symptomes associés":null},{"ID_Activite":"5fda9cd9","Lien_Date":"2026-04-02","Intensité":6.0,"Heure":"Journée entière","symptomes associés":null},{"ID_Activite":"f465dc70","Lien_Date":"2026-04-03","Intensité":6.0,"Heure":"Journée entière","symptomes associés":null},{"ID_Activite":"20ef4e9b","Lien_Date":"2026-04-04","Intensité":6.0,"Heure":"Journée entière","symptomes associés":null},{"ID_Activite":"6da53b39","Lien_Date":"2026-04-05","Intensité":6.0,"Heure":"Journée entière","symptomes associés":null},{"ID_Activite":"e5baccf3","Lien_Date":"2026-04-06","Intensité":7.0,"Heure":"Journée entière","symptomes associés":"Syptômes gastriques , Opression thoracique"},{"ID_Activite":"7a84ddb5","Lien_Date":"2026-04-07","Intensité":7.0,"Heure":"Journée entière","symptomes associés":"Syptômes gastriques"},{"ID_Activite":"eb592491","Lien_Date":"2026-04-08","Intensité":6.0,"Heure":"Journée entière","symptomes associés":null},{"ID_Activite":"153c9b6e","Lien_Date":"2026-04-11","Intensité":6.0,"Heure":"Journée entière","symptomes associés":"Syptômes gastriques"}]};
+
+// State
+let db = JSON.parse(localStorage.getItem('suivi_sante') || 'null') || INITIAL_DATA;
+let newActivities = [];
+let mainChart = null;
+let currentGraphTab = 'forme';
+
+function saveDB() { localStorage.setItem('suivi_sante', JSON.stringify(db)); }
+
+// ============================================================
+// UTILS
+// ============================================================
+function today() {
+  return new Date().toISOString().split('T')[0];
+}
+function formatDate(d) {
+  const dt = new Date(d + 'T12:00:00');
+  return dt.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
+}
+function uid() { return Math.random().toString(36).substr(2,8); }
+function scoreColor(v, invert=false) {
+  if (v === null || v === undefined) return '#64748b';
+  const n = parseFloat(v);
+  if (invert) {
+    if (n <= 3) return '#34d399';
+    if (n <= 6) return '#f97316';
+    return '#f87171';
+  }
+  if (n >= 7) return '#34d399';
+  if (n >= 4) return '#f97316';
+  return '#f87171';
+}
+
+// ============================================================
+// PAGE SWITCHING
+// ============================================================
+function switchPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'today') renderToday();
+  if (name === 'graphs') renderGraph(currentGraphTab);
+  if (name === 'history') renderHistory();
+  if (name === 'saisie') initSaisie();
+}
+
+// ============================================================
+// TODAY PAGE
+// ============================================================
+function renderToday() {
+  const todayStr = today();
+  document.getElementById('headerDate').textContent = formatDate(todayStr);
+  const entry = db.journal.find(j => j.Date === todayStr);
+  const pem = db.pem.find(p => p.Lien_Date === todayStr);
+  const acts = db.activites.filter(a => a.Lien_Date === todayStr);
+  const cont = document.getElementById('today-content');
+
+  if (!entry) {
+    const dismissed = sessionStorage.getItem('rappel_dismissed_' + todayStr);
+    if (!dismissed) {
+      cont.innerHTML = `
+        <div class="card" style="position:relative;text-align:center;padding:32px 16px">
+          <button onclick="dismissRappel('${todayStr}')" style="position:absolute;top:12px;right:12px;background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1">×</button>
+          <div style="font-size:40px;margin-bottom:12px">📋</div>
+          <div style="font-size:16px;font-weight:600;margin-bottom:8px">Pas encore de saisie aujourd'hui</div>
+          <div style="color:var(--muted);font-size:13px;margin-bottom:20px">${formatDate(todayStr)}</div>
+          <button class="btn btn-primary" onclick="switchPage('saisie')">Saisir ma journée</button>
+        </div>`;
+    } else {
+      cont.innerHTML = `<div class="empty">Aucune donnée saisie aujourd'hui.<br><br><button class="btn btn-secondary" onclick="switchPage('saisie')">+ Saisir ma journée</button></div>`;
+    }
+    return;
+  }
+
+  // Compute averages for last 7 days
+  const recent = db.journal.slice(-7);
+  const avgForme = (recent.reduce((s,r) => s + (r['Forme journée']||0), 0) / recent.filter(r=>r['Forme journée']).length).toFixed(1);
+
+  const forme = entry['Forme journée'] || entry['Forme Matin'];
+  const etrd = ((entry['Etourdissement matin']||0) + (entry['Etourdissement AM']||0)) / 2;
+
+  cont.innerHTML = `
+    <div class="today-grid">
+      <div class="stat-pill">
+        <span class="label">Forme</span>
+        <span class="value" style="color:${scoreColor(forme)}">${forme != null ? forme : '—'}</span>
+        <span class="sub">Moy. 7j: ${avgForme}</span>
+      </div>
+      <div class="stat-pill">
+        <span class="label">Sommeil</span>
+        <span class="value" style="color:${scoreColor(entry['Durée sommeil nocturne'],false)}">${entry['Durée sommeil nocturne']}h</span>
+        <span class="sub">Qualité: ${entry['Qualité Sommeil']}/10</span>
+      </div>
+      <div class="stat-pill">
+        <span class="label">Étourdissements</span>
+        <span class="value" style="color:${scoreColor(etrd,true)}">${etrd ? etrd.toFixed(1) : '—'}</span>
+        <span class="sub">/10</span>
+      </div>
+      <div class="stat-pill">
+        <span class="label">Siestes</span>
+        <span class="value">${entry['Siestes (Nb)'] != null ? entry['Siestes (Nb)'] : '—'}</span>
+        <span class="sub">Repos: ${entry['Repos (Nb)'] != null ? entry['Repos (Nb)'] : '—'}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Scores du jour</div>
+      ${scoreBar('Forme matin', entry['Forme Matin'], 10)}
+      ${scoreBar('Forme après-midi', entry['Forme Midi'], 10)}
+      ${scoreBar('Forme soir', entry['Forme Soir'], 10)}
+      ${scoreBar('Étourdiss. matin', entry['Etourdissement matin'], 10, true)}
+      ${scoreBar('Étourdiss. AM', entry['Etourdissement AM'], 10, true)}
+    </div>
+
+    ${pem ? `<div class="card" style="border-color:rgba(249,115,22,0.3)">
+      <div class="card-title">⚠️ PEM aujourd'hui</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${pem['symptomes associés'] ? '10px' : '0'}">
+        <span class="pem-badge">Intensité ${pem['Intensité']}/10</span>
+      </div>
+      ${pem['symptomes associés'] ? `<div class="tag-list">${pem['symptomes associés'].split(',').map(s => s.trim()).filter(s=>s).map(s => `<div class="tag" style="background:rgba(249,115,22,0.15);border-color:rgba(249,115,22,0.3);color:var(--warn);cursor:default">${s}</div>`).join('')}</div>` : ''}
+    </div>` : ''}
+
+    ${acts.length ? `<div class="card">
+      <div class="card-title">🎯 Activités (${acts.length})</div>
+      <div class="tag-list">
+        ${acts.map(a => `<div class="tag">${a.Heure === 'Matin' ? '🌅' : a.Heure === 'Après-midi' ? '☀️' : '🌙'} ${a.Nature_Activite}${a['Durée'] ? ` <span style="opacity:0.7;font-size:11px">(${a['Durée']})</span>` : ''}</div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:12px;color:var(--muted)">Pas</div>
+          <div style="font-size:20px;font-weight:600">${entry['Pas (centaines)'] != null ? (entry['Pas (centaines)']*100).toFixed(0) : '—'}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:var(--muted)">Cigarettes</div>
+          <div style="font-size:20px;font-weight:600">${entry['Cigarettes'] != null ? entry['Cigarettes'] : '—'}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function dismissRappel(dateStr) {
+  sessionStorage.setItem('rappel_dismissed_' + dateStr, '1');
+  renderToday();
+}
+
+function scoreBar(label, val, max, invert=false) {
+  if (val == null) return '';
+  const pct = (val / max * 100).toFixed(0);
+  const col = scoreColor(val, invert);
+  return `<div class="score-row">
+    <span class="score-label">${label}</span>
+    <div class="score-bar"><div class="score-fill" style="width:${pct}%;background:${col}"></div></div>
+    <span class="score-val" style="color:${col}">${val}</span>
+  </div>`;
+}
+
+// ============================================================
+// SAISIE
+// ============================================================
+function initSaisie() {
+  document.getElementById('saisie-date').value = today();
+  // Reset inputs
+  ['in-sommeil','in-qsommeil','in-fmatin','in-fmidi','in-fsoir',
+   'in-ematin','in-eam','in-esoir','in-pas'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  // Reset +/- counters
+  pmValues = { siestes: 0, repos: 0, sorties: 0, cigs: 0 };
+  ['siestes','repos','sorties','cigs'].forEach(f => {
+    document.getElementById('pm-' + f).textContent = '0';
+  });
+  document.querySelectorAll('#pem-symptom-tags .tag').forEach(t => t.classList.remove('selected'));
+  document.getElementById('pem-other').value = '';
+  pemIntensity = 0;
+  document.getElementById('pm-pem').textContent = '0';
+  document.getElementById('pem-symptoms-wrap').style.display = 'none';
+  renderActivityTags();
+}
+
+// Plus/minus state
+let pmValues = { siestes: 0, repos: 0, sorties: 0, cigs: 0 };
+
+let pemIntensity = 0;
+function pmChangePem(delta) {
+  pemIntensity = Math.max(0, Math.min(10, pemIntensity + delta));
+  document.getElementById('pm-pem').textContent = pemIntensity;
+  document.getElementById('pem-symptoms-wrap').style.display = pemIntensity > 0 ? 'block' : 'none';
+}
+
+function pmChange(field, delta) {
+  const mins = { siestes: 0, repos: 0, sorties: 0, cigs: 0 };
+  const maxs = { siestes: 10, repos: 20, sorties: 10, cigs: 60 };
+  pmValues[field] = Math.max(mins[field], Math.min(maxs[field], pmValues[field] + delta));
+  document.getElementById('pm-' + field).textContent = pmValues[field];
+}
+
+function toggleSymptom(el, name) {
+  el.classList.toggle('selected');
+}
+
+function getSelectedSymptoms() {
+  const selected = [...document.querySelectorAll('#pem-symptom-tags .tag.selected')]
+    .map(t => t.textContent.trim());
+  const other = document.getElementById('pem-other').value.trim();
+  if (other) selected.push(other);
+  return selected.join(', ') || null;
+}
+
+function getActDuree() {
+  const val = document.getElementById('act-duree').value;
+  if (!val) return null;
+  return parseFloat(val) + ' min avant épuisement';
+}
+
+function selectPreset(name) {
+  const heure = document.getElementById('act-heure').value;
+  const duree = getActDuree();
+  newActivities.push({ id: uid(), name, heure, duree });
+  document.getElementById('act-duree').value = '';
+  renderActivityTags();
+}
+
+function addActivity() {
+  const input = document.getElementById('act-input');
+  const heure = document.getElementById('act-heure').value;
+  const duree = getActDuree();
+  const name = input.value.trim();
+  if (!name) return;
+  newActivities.push({ id: uid(), name, heure, duree });
+  input.value = '';
+  document.getElementById('act-duree').value = '';
+  renderActivityTags();
+}
+
+function renderActivityTags() {
+  const wrap = document.getElementById('activity-tags');
+  wrap.innerHTML = newActivities.map((a, i) => `
+    <div class="tag selected">
+      ${a.heure === 'Matin' ? '🌅' : a.heure === 'Après-midi' ? '☀️' : '🌙'} ${a.name}${a.duree ? ` <span style="opacity:0.7;font-size:11px">(${a.duree})</span>` : ''}
+      <span class="remove" onclick="removeActivity(${i})">×</span>
+    </div>`).join('');
+}
+
+function removeActivity(i) {
+  newActivities.splice(i, 1);
+  renderActivityTags();
+}
+
+document.getElementById('act-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addActivity();
+});
+
+function saveEntry() {
+  const date = document.getElementById('saisie-date').value;
+  if (!date) { showToast('❌ Sélectionne une date', true); return; }
+
+  // Remove existing entry for this date
+  db.journal = db.journal.filter(j => j.Date !== date);
+  db.activites = db.activites.filter(a => a.Lien_Date !== date);
+  db.pem = db.pem.filter(p => p.Lien_Date !== date);
+
+  const fmatin = parseFloat(document.getElementById('in-fmatin').value) || null;
+  const fmidi = parseFloat(document.getElementById('in-fmidi').value) || null;
+  const fsoir = parseFloat(document.getElementById('in-fsoir').value) || null;
+  const vals = [fmatin, fmidi, fsoir].filter(v => v != null);
+  const fjourney = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+
+  db.journal.push({
+    "Date": date,
+    "Durée sommeil nocturne": parseFloat(document.getElementById('in-sommeil').value) || null,
+    "Qualité Sommeil": parseFloat(document.getElementById('in-qsommeil').value) || null,
+    "Forme Matin": fmatin,
+    "Forme Midi": fmidi,
+    "Forme Soir": fsoir,
+    "Forme journée": fjourney ? parseFloat(fjourney.toFixed(1)) : null,
+    "Etourdissement matin": parseFloat(document.getElementById('in-ematin').value) || null,
+    "Etourdissement AM": parseFloat(document.getElementById('in-eam').value) || null,
+    "Etourdissement Soir": parseFloat(document.getElementById('in-esoir').value) || null,
+    "Siestes (Nb)": pmValues.siestes,
+    "Repos (Nb)": pmValues.repos,
+    "Nombre de sorties": pmValues.sorties,
+    "Pas (centaines)": parseFloat(document.getElementById('in-pas').value) ? parseFloat(document.getElementById('in-pas').value) / 100 : null,
+    "Cigarettes": pmValues.cigs
+  });
+
+  // Sort journal by date
+  db.journal.sort((a,b) => a.Date.localeCompare(b.Date));
+
+  // Activities
+  newActivities.forEach(a => {
+    db.activites.push({ ID_Activite: a.id, Lien_Date: date, Nature_Activite: a.name, Heure: a.heure, Durée: a.duree || null });
+  });
+
+  // PEM
+  if (pemIntensity > 0) {
+    db.pem.push({
+      ID_Activite: uid(),
+      Lien_Date: date,
+      Intensité: pemIntensity,
+      Heure: 'Journée entière',
+      'symptomes associés': getSelectedSymptoms()
+    });
+  }
+
+  saveDB();
+  showToast('✅ Journée enregistrée !');
+  setTimeout(() => switchPage('today'), 800);
+}
+
+// ============================================================
+// GRAPHS
+// ============================================================
+function switchGraphTab(tab) {
+  currentGraphTab = tab;
+  document.querySelectorAll('#graph-tabs .tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderGraph(tab);
+}
+
+function renderGraph(tab) {
+  const sorted = [...db.journal].sort((a,b) => a.Date.localeCompare(b.Date));
+  const last = sorted.slice(-14);
+  const labels = last.map(d => formatDate(d.Date));
+
+  const configs = {
+    forme: {
+      title: 'Forme (14 derniers jours)',
+      datasets: [
+        { label: 'Matin', data: last.map(d => d['Forme Matin']), borderColor: '#6c8ef5', tension: 0.3, fill: false },
+        { label: 'Après-midi', data: last.map(d => d['Forme Midi']), borderColor: '#a78bfa', tension: 0.3, fill: false },
+        { label: 'Soir', data: last.map(d => d['Forme Soir']), borderColor: '#34d399', tension: 0.3, fill: false },
+      ]
+    },
+    etourdissements: {
+      title: 'Étourdissements (14 derniers jours)',
+      datasets: [
+        { label: 'Matin', data: last.map(d => d['Etourdissement matin']), borderColor: '#f97316', tension: 0.3, fill: false },
+        { label: 'Après-midi', data: last.map(d => d['Etourdissement AM']), borderColor: '#f87171', tension: 0.3, fill: false },
+      ]
+    },
+    sommeil: {
+      title: 'Sommeil (14 derniers jours)',
+      datasets: [
+        { label: 'Durée (h)', data: last.map(d => d['Durée sommeil nocturne']), borderColor: '#6c8ef5', tension: 0.3, fill: false },
+        { label: 'Qualité /10', data: last.map(d => d['Qualité Sommeil']), borderColor: '#a78bfa', tension: 0.3, fill: false },
+      ]
+    },
+    pem: {
+      title: 'PEM - Intensité (14 derniers jours)',
+      datasets: [{
+        label: 'PEM',
+        data: last.map(d => { const p = db.pem.find(p => p.Lien_Date === d.Date); return p ? p.Intensité : 0; }),
+        borderColor: '#f97316',
+        backgroundColor: 'rgba(249,115,22,0.2)',
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    activite: {
+      title: 'Activité physique (14 derniers jours)',
+      datasets: [
+        { label: 'Pas (centaines)', data: last.map(d => d['Pas (centaines)']), borderColor: '#34d399', tension: 0.3, fill: false },
+        { label: 'Cigarettes', data: last.map(d => d['Cigarettes']), borderColor: '#f87171', tension: 0.3, fill: false },
+      ]
+    }
+  };
+
+  const cfg = configs[tab];
+  document.getElementById('graph-title').textContent = cfg.title;
+
+  if (mainChart) mainChart.destroy();
+
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  mainChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: cfg.datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 } }
+      },
+      scales: {
+        x: { ticks: { color: '#475569', font: { size: 9 }, maxRotation: 45 }, grid: { color: '#1e2335' } },
+        y: { ticks: { color: '#475569', font: { size: 10 } }, grid: { color: '#1e2335' } }
+      },
+      spanGaps: true
+    }
+  });
+
+  // Stats
+  renderGraphStats(tab, last);
+}
+
+function renderGraphStats(tab, data) {
+  const wrap = document.getElementById('graph-stats');
+  if (tab === 'forme') {
+    const vals = data.map(d => d['Forme journée']).filter(v => v != null);
+    const avg = (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
+    const min = Math.min(...vals).toFixed(1);
+    const max = Math.max(...vals).toFixed(1);
+    wrap.innerHTML = `<div class="card">
+      <div class="card-title">Statistiques forme</div>
+      <div class="today-grid">
+        <div class="stat-pill"><span class="label">Moyenne</span><span class="value" style="color:${scoreColor(avg)}">${avg}</span></div>
+        <div class="stat-pill"><span class="label">Min</span><span class="value c-bad">${min}</span></div>
+        <div class="stat-pill"><span class="label">Max</span><span class="value c-good">${max}</span></div>
+        <div class="stat-pill"><span class="label">Jours</span><span class="value">${vals.length}</span></div>
+      </div>
+    </div>`;
+  } else if (tab === 'pem') {
+    const pemDays = data.filter(d => db.pem.find(p => p.Lien_Date === d.Date && p.Intensité > 0));
+    wrap.innerHTML = `<div class="card">
+      <div class="card-title">Statistiques PEM</div>
+      <div class="today-grid">
+        <div class="stat-pill"><span class="label">Jours PEM</span><span class="value c-warn">${pemDays.length}</span><span class="sub">sur ${data.length}</span></div>
+        <div class="stat-pill"><span class="label">% du temps</span><span class="value c-warn">${(pemDays.length/data.length*100).toFixed(0)}%</span></div>
+      </div>
+    </div>`;
+  } else {
+    wrap.innerHTML = '';
+  }
+}
+
+// ============================================================
+// HISTORY
+// ============================================================
+function renderHistory() {
+  const sorted = [...db.journal].sort((a,b) => b.Date.localeCompare(a.Date));
+  const wrap = document.getElementById('history-list');
+  wrap.innerHTML = sorted.map(entry => {
+    const pem = db.pem.find(p => p.Lien_Date === entry.Date);
+    const acts = db.activites.filter(a => a.Lien_Date === entry.Date);
+    const forme = entry['Forme journée'] || entry['Forme Matin'];
+    return `<div class="history-item" onclick="showDetail('${entry.Date}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div class="history-date">${formatDate(entry.Date)}</div>
+        ${pem ? `<span class="pem-badge">PEM ${pem['Intensité']}</span>` : ''}
+      </div>
+      <div class="history-scores">
+        <div class="score-badge"><div class="dot" style="background:${scoreColor(forme)}"></div>Forme ${forme || '—'}</div>
+        <div class="score-badge">💤 ${entry['Durée sommeil nocturne']}h</div>
+        ${acts.length ? `<div class="score-badge">🎯 ${acts.length} activité${acts.length>1?'s':''}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showDetail(date) {
+  const entry = db.journal.find(j => j.Date === date);
+  const pem = db.pem.find(p => p.Lien_Date === date);
+  const acts = db.activites.filter(a => a.Lien_Date === date);
+
+  document.getElementById('modal-title').textContent = formatDate(date);
+  document.getElementById('modal-body').innerHTML = `
+    <div class="detail-row"><span class="key">Sommeil</span><span class="val">${entry['Durée sommeil nocturne']}h · Qualité ${entry['Qualité Sommeil']}/10</span></div>
+    <div class="detail-row"><span class="key">Forme matin</span><span class="val" style="color:${scoreColor(entry['Forme Matin'])}">${entry['Forme Matin']}/10</span></div>
+    <div class="detail-row"><span class="key">Forme après-midi</span><span class="val" style="color:${scoreColor(entry['Forme Midi'])}">${entry['Forme Midi'] != null ? entry['Forme Midi']+'/10' : '—'}</span></div>
+    <div class="detail-row"><span class="key">Forme soir</span><span class="val" style="color:${scoreColor(entry['Forme Soir'])}">${entry['Forme Soir'] != null ? entry['Forme Soir']+'/10' : '—'}</span></div>
+    <div class="detail-row"><span class="key">Étourdiss. matin</span><span class="val" style="color:${scoreColor(entry['Etourdissement matin'],true)}">${entry['Etourdissement matin'] != null ? entry['Etourdissement matin']+'/10' : '—'}</span></div>
+    <div class="detail-row"><span class="key">Étourdiss. AM</span><span class="val" style="color:${scoreColor(entry['Etourdissement AM'],true)}">${entry['Etourdissement AM'] != null ? entry['Etourdissement AM']+'/10' : '—'}</span></div>
+    <div class="detail-row"><span class="key">Siestes</span><span class="val">${entry['Siestes (Nb)'] != null ? entry['Siestes (Nb)'] : '—'}</span></div>
+    <div class="detail-row"><span class="key">Repos</span><span class="val">${entry['Repos (Nb)'] != null ? entry['Repos (Nb)'] : '—'}</span></div>
+    <div class="detail-row"><span class="key">Pas</span><span class="val">${entry['Pas (centaines)'] != null ? (entry['Pas (centaines)']*100).toFixed(0) : '—'}</span></div>
+    <div class="detail-row"><span class="key">Cigarettes</span><span class="val">${entry['Cigarettes'] != null ? entry['Cigarettes'] : '—'}</span></div>
+    ${pem ? `<div style="background:rgba(249,115,22,0.07);border:1px solid rgba(249,115,22,0.25);border-radius:12px;padding:12px;margin-top:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:${pem['symptomes associés'] ? '10px' : '0'}">
+        <span style="font-size:13px;color:var(--muted)">⚠️ PEM</span>
+        <span class="pem-badge">Intensité ${pem['Intensité']}/10</span>
+      </div>
+      ${pem['symptomes associés'] ? `<div class="tag-list">${pem['symptomes associés'].split(',').map(s => s.trim()).filter(s=>s).map(s => `<div class="tag" style="background:rgba(249,115,22,0.15);border-color:rgba(249,115,22,0.3);color:var(--warn);cursor:default">${s}</div>`).join('')}</div>` : ''}
+    </div>` : ''}
+    ${acts.length ? `<div style="margin-top:12px">
+      <div class="card-title">Activités</div>
+      <div class="tag-list">
+        ${acts.map(a => `<div class="tag">${a.Heure === 'Matin' ? '🌅' : a.Heure === 'Après-midi' ? '☀️' : '🌙'} ${a.Nature_Activite}${a['Durée'] ? ` <span style="opacity:0.7;font-size:11px">(${a['Durée']})</span>` : ''}</div>`).join('')}
+      </div>
+    </div>` : ''}
+    <div style="height:16px"></div>
+  `;
+  document.getElementById('detailModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('detailModal').classList.remove('open');
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? '#f87171' : '#34d399';
+  t.style.color = isError ? '#fff' : '#0a1a12';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.getElementById('headerDate').textContent = formatDate(today());
+renderToday();
+initSaisie();
+</script>
+</body>
+</html>
