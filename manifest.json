@@ -1,0 +1,16 @@
+{
+  "name": "Suivi Santé",
+  "short_name": "Suivi Santé",
+  "start_url": "/suivi-sante/suivi-sante-10.html",
+  "display": "standalone",
+  "background_color": "#f5ede6",
+  "theme_color": "#f5ede6",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/ulysseimpex-ux/suivi-sante/main/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
