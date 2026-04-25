@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Jeu de Joanne</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; padding: 0; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; height: 100svh; 
+            background-color: #000; font-family: sans-serif; overflow: hidden; 
+            touch-action: manipulation; 
+        }
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; color: white;
+        }
+        .btn {
+            padding: 20px 50px; font-size: 28px; font-weight: bold;
+            background: #4CAF50; color: white; border: none; border-radius: 50px; 
+            cursor: pointer; box-shadow: 0 6px #2e7d32;
+        }
+        #ui { position: absolute; top: 10px; display: flex; gap: 15px; z-index: 20; visibility: hidden; }
+        .stat-box {
+            background: rgba(255, 107, 107, 0.9); padding: 8px 20px; 
+            border-radius: 50px; font-size: 18px; font-weight: bold; color: white; border: 2px solid #fff;
+        }
+        #game-container { 
+            position: relative; width: 100vw; height: 100svh; 
+            background-image: url('https://raw.githubusercontent.com/ulysseimpex-ux/suivi-sante/main/chambre.jpg'); 
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+            visibility: hidden; overflow: hidden; 
+        }
+        #doudou { position: absolute; width: 12%; display: none; cursor: pointer; z-index: 10; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4)); }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1 id="title">Prête Joanne ?</h1>
+        <p id="final-score" style="display:none; font-size: 24px; color: #ffeb3b; margin: 10px;"></p>
+        <button id="start-btn" class="btn">JOUER</button>
+    </div>
+
+    <div id="ui">
+        <div class="stat-box">Score : <span id="score">0</span></div>
+        <div class="stat-box">Rats : <span id="missed">0</span>/4</div>
+    </div>
+
+    <div id="game-container">
+        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/527.png" id="doudou">
+    </div>
+
+<script>
+    const doudou = document.getElementById('doudou');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('start-btn');
+    const gameContainer = document.getElementById('game-container');
+    const ui = document.getElementById('ui');
+    const title = document.getElementById('title');
+
+    let score = 0, missed = 0, gameActive = false, timer = null;
+    let audioCtx = null;
+    let premierePartie = true; // Pour savoir s'il faut parler
+    const spots = [{x:28, y:58}, {x:45, y:42}, {x:62, y:58}, {x:72, y:48}, {x:65, y:70}];
+
+    function initAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playPop(freq, type = 'sine') {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 2, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+    }
+
+    function demarrerJeuVrai() {
+        if (gameActive) return;
+        gameActive = true;
+        overlay.style.display = 'none';
+        ui.style.visibility = 'visible';
+        gameContainer.style.visibility = 'visible';
+        showDoudou();
+    }
+
+    function parler() {
+        window.speechSynthesis.cancel();
+        const phrase = "Maintenant Joanne ? Tu dois toucher la chauve-souris quand elle apparaît ! N'oublie pas de tourner ton téléphone.";
+        const msg = new SpeechSynthesisUtterance(phrase);
+        msg.lang = 'fr-FR';
+        msg.rate = 0.9;
+        msg.onend = demarrerJeuVrai;
+        window.speechSynthesis.speak(msg);
+        setTimeout(() => { if (!gameActive) demarrerJeuVrai(); }, 5500);
+    }
+
+    function showDoudou() {
+        if (!gameActive) return;
+        const spot = spots[Math.floor(Math.random() * spots.length)];
+        doudou.style.left = spot.x + '%';
+        doudou.style.top = spot.y + '%';
+        doudou.style.display = 'block';
+        playPop(300, 'square'); 
+
+        timer = setTimeout(() => {
+            doudou.style.display = 'none';
+            if (!gameActive) return;
+            missed++;
+            document.getElementById('missed').textContent = missed;
+            if (missed >= 4) finDePartie();
+            else setTimeout(showDoudou, 700);
+        }, 1500);
+    }
+
+    function finDePartie() {
+        gameActive = false;
+        clearTimeout(timer);
+        overlay.style.display = 'flex';
+        title.textContent = "BRAVO JOANNE !";
+        document.getElementById('final-score').textContent = "Score : " + score;
+        document.getElementById('final-score').style.display = "block";
+        startBtn.textContent = "REJOUER";
+        startBtn.style.display = "block";
+        ui.style.visibility = 'hidden';
+        gameContainer.style.visibility = 'hidden';
+        premierePartie = false; // La prochaine fois, on ne parlera pas
+    }
+
+    function auClic() {
+        initAudio(); 
+        score = 0; missed = 0;
+        document.getElementById('score').textContent = "0";
+        document.getElementById('missed').textContent = "0";
+        document.getElementById('final-score').style.display = "none";
+        
+        if (premierePartie) {
+            title.textContent = "Écoute Joanne...";
+            startBtn.style.display = "none";
+            setTimeout(parler, 200);
+        } else {
+            // Pas de voix pour le mode "Rejouer", on lance direct
+            demarrerJeuVrai();
+        }
+    }
+
+    startBtn.onclick = auClic;
+
+    doudou.onclick = (e) => {
+        e.preventDefault();
+        if (!gameActive) return;
+        playPop(600, 'sine'); 
+        score++;
+        document.getElementById('score').textContent = score;
+        doudou.style.display = 'none';
+        clearTimeout(timer);
+        setTimeout(showDoudou, 400);
+    };
+</script>
+</body>
+</html>
